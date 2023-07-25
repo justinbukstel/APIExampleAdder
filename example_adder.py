@@ -14,16 +14,6 @@ def prompt_example_values(parameters):
         example_values[parameter_name] = example
     return example_values
 
-def prompt_request_body_example_values(request_body_properties, method, endpoint):
-    example_values = {}
-    for prop_name, prop_data in request_body_properties.items():
-        if "example" in prop_data:
-            continue
-        prop_type = prop_data["type"]
-        example = input(f"Enter an example value for property '{prop_name}' of type '{prop_type}' in the request body for the '{method}' request in '{endpoint}': ")
-        example_values[prop_name] = example
-    return example_values
-
 def add_example_values(openapi_spec, example_values):
     for path in openapi_spec["paths"]:
         for method in openapi_spec["paths"][path]:
@@ -34,15 +24,6 @@ def add_example_values(openapi_spec, example_values):
                         parameter["schema"]["example"] = example_values[parameter_name]
                         parameter.pop("method", None)
                         parameter.pop("endpoint", None)
-
-            if method in ["put", "post"] and "requestBody" in openapi_spec["paths"][path][method]:
-                request_body_content = openapi_spec["paths"][path][method]["requestBody"]["content"]
-                if "application/json" in request_body_content:
-                    properties = request_body_content["application/json"]["schema"]["properties"]
-                    for prop_name, prop_data in properties.items():
-                        if "example" not in prop_data:
-                            if prop_name in example_values:
-                                prop_data["example"] = example_values[prop_name]
 
 def write_openapi_spec(openapi_spec, filename):
     with open(filename, "w") as file:
@@ -68,27 +49,15 @@ def main():
                     parameter["endpoint"] = path
                     parameters.append(parameter)
 
-    # Identify request body properties requiring example values
-    request_body_example_values = {}
-    if "paths" in openapi_spec:
-        for path in openapi_spec["paths"]:
-            for method in openapi_spec["paths"][path]:
-                if method in ["put", "post"] and "requestBody" in openapi_spec["paths"][path][method]:
-                    request_body_content = openapi_spec["paths"][path][method]["requestBody"]["content"]
-                    if "application/json" in request_body_content:
-                        properties = request_body_content["application/json"]["schema"]["properties"]
-                        request_body_example_values = prompt_request_body_example_values(properties, method, path)
-
-    # Prompt the user for example values for parameters
+    # Prompt the user for example values
     example_values = prompt_example_values(parameters)
 
-    if not example_values and not request_body_example_values:
-        print("All parameters and request body properties already have example values. No further input needed.")
+    if not example_values:
+        print("All parameters already have example values. No further input needed.")
         return
 
-    # Update the OpenAPI specification with example values for parameters and request body properties
+    # Update the OpenAPI specification with example values
     add_example_values(openapi_spec, example_values)
-    add_example_values(openapi_spec, request_body_example_values)
 
     # Write the modified OpenAPI specification to a file
     updated_filename = "openapi_with_examples.json"
@@ -97,6 +66,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
